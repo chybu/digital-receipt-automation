@@ -1,11 +1,11 @@
 # Digital Receipt Automation
 
 An automated data extraction and organization tool for government-issued digital receipts.  
-This system combines **Selenium**, **HTTPX**, and **async I/O** to log in, capture authorization tokens, retrieve large batches of receipt data, and export them into Excel files for analysis or record-keeping.
+This system combines **Selenium**, **httpx**, and **asyncio** to log in, capture authorization tokens, retrieve large batches of receipt data, and export them into Excel files for analysis or record-keeping.
 
 ---
 
-## 🚀 Overview
+## Overview
 
 This project automates the process of retrieving and structuring e-receipt data from the official Vietnamese government e-invoice portal (`hoadondientu.gdt.gov.vn`).  
 It handles browser authentication, API token extraction, and high-speed asynchronous data collection, turning previously manual tasks into fully automated workflows.
@@ -19,29 +19,17 @@ The app includes:
 
 ---
 
-## 🧩 Features
+## Features
 
-- 🔐 Automated browser login and token management  
-- ⚡ Parallel async requests for up to **10,000 receipts/hour**  
-- 🧾 Support for both **Sales (Bán ra)** and **Purchases (Mua vào)** receipts  
-- 📊 Structured export of financial data to Excel for reporting and audits  
-- 🪟 GUI interface for non-technical users (Tkinter executable)  
-
----
-
-## 🧠 Technical Stack
-
-- **Python 3.11+**
-- **Selenium** — automated Chrome login and DOM interaction  
-- **HTTPX** — async API communication  
-- **Asyncio** — concurrent I/O handling  
-- **WebSocket / DevTools Protocol** — authorization token capture  
-- **Pandas** — data cleaning and export  
-- **Tkinter** — graphical interface for running the tool  
+- Automated browser login and token management  
+- Parallel async requests for up to **10,000 receipts/hour**  
+- Support different receipt types  
+- Structured export of financial data to Excel for reporting and audits  
+- GUI interface for non-technical users (Tkinter executable)  
 
 ---
 
-## ⚙️ How It Works
+## How It Works
 
 1. Launches Chrome in remote-debug mode and connects via Selenium.  
 2. Intercepts authorization headers through Chrome’s WebSocket API (`getAuth.py`).  
@@ -51,7 +39,7 @@ The app includes:
 
 ---
 
-## 🧰 File Structure
+## File Structure
 
 | File | Description |
 |------|--------------|
@@ -63,9 +51,9 @@ The app includes:
 
 ---
 
-## 🪄 Usage
+## Usage
 
-1. Ensure you have **Google Chrome** and **ChromeDriver** installed.  
+1. Ensure you have **Google Chrome** and **ChromeDriver** installed. This app won't work with higher chrome and chromedriver version higher than 135
 2. Update `path.json` with the correct paths:
    ```json
    {
