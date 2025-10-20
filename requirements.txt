@@ -1,0 +1,7 @@
+httpx==0.28.1
+pandas==2.2.3
+pyautogui==0.9.54
+pygetwindow==0.0.9
+selenium==4.32.0
+tkcalendar==1.6.1
+websocket_client==1.8.0
