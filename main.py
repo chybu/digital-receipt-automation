@@ -16,6 +16,7 @@ import pandas as pd
 import pygetwindow as gw
 import subprocess
 from getAuth import getAuth
+from traceback import print_exc
 
 if hasattr(sys, '_MEIPASS'):
     # Running in the temp directory (PyInstaller extracted files)
@@ -31,7 +32,7 @@ exe_path = path_dic["exe_path"]
 driver_path = path_dic["driver_path"]
 batch_script = path_dic["batch_script"]
 
-tinh_chat_dic = {1:"Hàng hóa, dịch vụ",2:"Hàng khuyến mại",3:"Chiết khấu thương mại",4:"Ghi chú, diễn giải"}
+tinh_chat_dic = {1:"Hàng hóa, dịch vụ",2:"Hàng khuyến mại",3:"Chiết khấu thương mại",4:"Ghi chú, diễn giải", 5:"Hàng hoá đặc trưng"}
 
 async def returnNone():
     return None
@@ -88,6 +89,9 @@ def open_web(driver:webdriver, url:str):
         sleep(1)
     
 def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using_username:str, pw:str, safemode:bool):
+    invalid_hoa_don_list = []
+    invalid_dich_vu_list = []
+    
     url = "https://hoadondientu.gdt.gov.vn/tra-cuu/tra-cuu-hoa-don"
     if driver.current_url!=url: open_web(driver, url)
 
@@ -208,7 +212,7 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
     
     number = enter_date()
     page_now = 1
-    if number==0: return (None, None, auth)
+    if number==0: return None, None, auth, invalid_hoa_don_list, invalid_dich_vu_list
     counter = 0
     finish = True
     while counter!=number:
@@ -324,12 +328,8 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
             in zip(stt_list, khms_list, ky_hieu_list, so_hoa_don_list,trang_thai_list, ket_qua_list, res_list):
                 if not stt.text.strip(): continue
                 counter+=1
-                temp_khms.append(format_empty_str(khms.text))
-                temp_ky_hieu.append(format_empty_str(kh.text))
-                temp_so_hoa_don.append(format_empty_str(so_hoa_don.text))
-                trang_thai_hoa_don = format_empty_str(trang_thai.text)
-                temp_trang_thai.append(trang_thai_hoa_don)
-                temp_ket_qua.append(format_empty_str(ket_qua.text))
+                
+                invalid_dich_vu_ct = 0
                 
                 def format_none(target):
                     if target is None: return "n/a"
@@ -337,45 +337,101 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
                         target = str(target)
                         return target.strip()
                     
-                mst_nguoimua = format_none(API_res["nmmst"])
-                kyhieu_sohoadon = f"{kh.text}_{so_hoa_don.text}_{mst_nguoimua}"
-                temp_kyhieu_sohoadon.append(kyhieu_sohoadon)
-                
-                temp_ngaylap.append(format_none(API_res["tdlap"][:10]))
-                temp_mccqt.append(format_none(API_res["mhdon"]))
-                temp_ten_nguoiban.append(format_none(API_res["nbten"]))
-                temp_MST_nguoiban.append(format_none(API_res["nbmst"]))
-                temp_dia_chi_nguoiban.append(format_none(API_res["nbdchi"]))
-                ten_target = format_none(API_res["nmten"])
-                temp_ten_nguoimua.append(ten_target)
-                temp_MST_nguoimua.append(mst_nguoimua)
-                temp_dia_chi_nguoimua.append(format_none(API_res["nmdchi"]))
-                temp_hinh_thuc_thanh_toan.append(format_none(API_res["thtttoan"])) 
-                if len(API_res["thttltsuat"])!=0 and "tsuat" in API_res["thttltsuat"][0]:
-                    thue_suat_dic = API_res["thttltsuat"][0]
-                    temp_thue_suat.append(format_none(thue_suat_dic["tsuat"]))
-                else: temp_thue_suat.append("n/a")
-                
                 def format_money(target):
                     if target is None: return "n/a"
                     return str(int(target))
                 
-                temp_tong_tien_bang_so.append(format_money(API_res["tgtttbso"]))
-                temp_tong_tien_bang_chu.append(format_none(API_res["tgtttbchu"]))
-                temp_tien_chua_thue.append(format_money(API_res["tgtcthue"]))
-                temp_tien_thue.append(format_money(API_res["tgtthue"]))
-                temp_chiet_khau_thuong_mai.append(format_money(API_res["ttcktmai"]))
-                temp_tien_phi.append(format_money(API_res["tgtphi"]))
-                temp_tien_thanh_toan.append(format_money(API_res["tgtttbso"]))
-                temp_don_vi_tien.append(format_none(API_res["dvtte"]))
+                try:
+                    current_khms = format_empty_str(khms.text)
+                    current_ky_hieu = format_empty_str(kh.text)
+                    current_so_hoa_don = format_empty_str(so_hoa_don.text)
+                    current_trang_thai_hoa_don = format_empty_str(trang_thai.text)
+                    current_ket_qua = format_empty_str(ket_qua.text)
+                
+                    current_mst_nguoimua = format_none(API_res["nmmst"])
+                    current_kyhieu_sohoadon = f"{current_ky_hieu}_{current_so_hoa_don}_{current_mst_nguoimua}"
 
+                    current_ngaylap = format_none(API_res["tdlap"][:10])
+                    current_mccqt = format_none(API_res["mhdon"])
+                    current_ten_nguoiban = format_none(API_res["nbten"])
+                    current_mst_nguoiban = format_none(API_res["nbmst"])
+                    current_dia_chi_nguoiban = format_none(API_res["nbdchi"])
+                    current_ten_nguoimua = format_none(API_res["nmten"])
+                    current_dia_chi_nguoimua = format_none(API_res["nmdchi"])
+                    
+                    if "thtttoan" in API_res:
+                        current_hinh_thuc_thanh_toan = format_none(API_res["thtttoan"])
+                    else:
+                        current_hinh_thuc_thanh_toan = "n/a"
+                        
+                    if "tgtphi" in API_res:
+                        current_tien_phi = format_money(API_res["tgtphi"])
+                        
+                    if "dvtte" in API_res:
+                        current_dvtte = format_none(API_res["dvtte"])
+                    else:
+                        current_dvtte = "n/a"
+                        
+                    if len(API_res["thttltsuat"])!=0 and "tsuat" in API_res["thttltsuat"][0]:
+                        thue_suat_dic = API_res["thttltsuat"][0]
+                        current_thue_suat = format_none(thue_suat_dic["tsuat"])
+                    else: 
+                        current_thue_suat = "n/a"
+
+                    current_tong_tien_bang_so = format_money(API_res["tgtttbso"])
+                    current_tong_tien_bang_chu = format_none(API_res["tgtttbchu"])
+                    current_tien_chua_thue = format_money(API_res["tgtcthue"])
+                    current_tien_thue = format_money(API_res["tgtthue"])
+                    current_chiet_khau_thuong_mai = format_money(API_res["ttcktmai"])
+                    current_tien_thanh_toan = format_money(API_res["tgtttbso"])
+
+                    temp_khms.append(current_khms)
+                    temp_ky_hieu.append(current_ky_hieu)
+                    temp_so_hoa_don.append(current_so_hoa_don)
+                    temp_trang_thai.append(current_trang_thai_hoa_don)
+                    temp_ket_qua.append(current_ket_qua)
+                    temp_kyhieu_sohoadon.append(current_kyhieu_sohoadon)
+                    temp_ngaylap.append(current_ngaylap)
+                    temp_mccqt.append(current_mccqt)
+                    temp_ten_nguoiban.append(current_ten_nguoiban)
+                    temp_MST_nguoiban.append(current_mst_nguoiban)
+                    temp_dia_chi_nguoiban.append(current_dia_chi_nguoiban)
+                    temp_ten_nguoimua.append(current_ten_nguoimua)
+                    temp_MST_nguoimua.append(current_mst_nguoimua)
+                    temp_dia_chi_nguoimua.append(current_dia_chi_nguoimua)
+                    temp_hinh_thuc_thanh_toan.append(current_hinh_thuc_thanh_toan)
+                    temp_tien_phi.append(current_tien_phi)
+                    temp_don_vi_tien.append(current_dvtte)
+                    temp_thue_suat.append(current_thue_suat)
+                    temp_tong_tien_bang_so.append(current_tong_tien_bang_so)
+                    temp_tong_tien_bang_chu.append(current_tong_tien_bang_chu)
+                    temp_tien_chua_thue.append(current_tien_chua_thue)
+                    temp_tien_thue.append(current_tien_thue)
+                    temp_chiet_khau_thuong_mai.append(current_chiet_khau_thuong_mai)
+                    temp_tien_thanh_toan.append(current_tien_thanh_toan)
+                except Exception:
+                    # neu hoa don bi loi thi se ko parse hang hoa dich vu trong hoa don
+                    error_string = f"LOI FORMAT HOA DON BAN RA. SO HOA DON: {so_hoa_don.text}"
+                    invalid_hoa_don_list.append(error_string)
+                    
+                    print("-------------------------------------------------")
+                    print(error_string)
+                    print_exc()
+                    print("-------------------------------------------------")
+
+                    continue
+                
+                
                 hang_hoa_dich_vu_list = API_res["hdhhdvu"]
                 
-                def format_thue_suat(target):
-                    if target is None: return "n/a"
-                    thue = round(float(target)*100,2)
+                def format_thue_suat(thue_suat):
+                    thue = round(thue_suat*100,2)
                     string = f"{thue}%"
                     string = string.replace(".",",")
+                    return string
+                def format_tien_thue(thue):
+                    string = str(thue)
+                    string = string.replace(".", ",")
                     return string
                 def get_thue_suat(target):
                     if target is None: return 0
@@ -388,31 +444,57 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
                     return int(target)
                 
                 for hhdv_dic in hang_hoa_dich_vu_list:
-                    temp_tinh_chat_list.append(format_tinh_chat(hhdv_dic["tchat"]))
-                    temp_ten_list.append(format_none(hhdv_dic["ten"]))
-                    temp_don_vi_list.append(format_none(hhdv_dic["dvtinh"]))
-                    temp_so_luong_list.append(format_none(hhdv_dic["sluong"]).replace(".",","))
-                    temp_don_gia_list.append(format_none(hhdv_dic["dgia"]).replace(".",","))
-                    temp_chiet_khau_list.append(format_none(hhdv_dic["stckhau"]).replace(".",","))
+                    try:
+                        current_tinh_chat = format_tinh_chat(hhdv_dic["tchat"])
+                        current_ten = format_none(hhdv_dic["ten"])
+                        current_don_vi = format_none(hhdv_dic["dvtinh"])
+                        current_so_luong = format_none(hhdv_dic["sluong"]).replace(".",",")
+                        current_don_gia = format_none(hhdv_dic["dgia"]).replace(".",",")
+                        current_chiet_khau = format_none(hhdv_dic["stckhau"]).replace(".",",")
+                        
+                        current_thanh_tien = get_thanh_tien(hhdv_dic["thtien"])
+                        if current_thanh_tien==0:
+                            current_thue_suat = "n/a"
+                            current_tien_thue = "n/a"
+                            current_tong_tien = "n/a"
+                        else:
+                            current_thue_suat = get_thue_suat(hhdv_dic["tsuat"])
+                            current_tien_thue = round(current_thanh_tien*current_thue_suat,2)
+                            current_tong_tien = current_thanh_tien+current_tien_thue
+                            
+                            # format thue suat from float to x,x% format
+                            current_thue_suat = format_thue_suat(current_thue_suat)
+                            # format tien thue from float to x,x format
+                            current_tien_thue = format_tien_thue(current_tien_thue)
+                            # format tong tien from float to x,x format
+                            current_tong_tien = format_tien_thue(current_tong_tien)
                     
-                    thanh_tien = get_thanh_tien(hhdv_dic["thtien"])
-                    if thanh_tien==0:
-                        tien_thue = "n/a"
-                        tong_tien = "n/a"
-                    else:
-                        thue_suat = get_thue_suat(hhdv_dic["tsuat"])
-                        tien_thue = round(thanh_tien*thue_suat,2)
-                        tong_tien = thanh_tien+tien_thue
-                    
-                    temp_thue_suat_list.append(format_thue_suat(hhdv_dic["tsuat"]))
-                    temp_thanh_tien_list.append(format_money(hhdv_dic["thtien"]))
-                    temp_tien_thue_list.append(f"{tien_thue}".replace(".",","))
-                    temp_tong_tien_list.append(tong_tien)
-                    temp_khshd_list.append(kyhieu_sohoadon)
-                    temp_ten_target_list.append(ten_target)
-                    temp_mst_target_list.append(mst_nguoimua)
-                    temp_trang_thai_hoa_don_list.append(trang_thai_hoa_don)
-        
+                        temp_tinh_chat_list.append(current_tinh_chat)
+                        temp_ten_list.append(current_ten)
+                        temp_don_vi_list.append(current_don_vi)
+                        temp_so_luong_list.append(current_so_luong)
+                        temp_don_gia_list.append(current_don_gia)
+                        temp_chiet_khau_list.append(current_chiet_khau)
+                        temp_thue_suat_list.append(current_thue_suat)
+                        temp_thanh_tien_list.append(current_thanh_tien)
+                        temp_tien_thue_list.append(current_tien_thue)
+                        temp_tong_tien_list.append(current_tong_tien)
+                        temp_khshd_list.append(current_kyhieu_sohoadon)
+                        temp_ten_target_list.append(current_ten_nguoimua)
+                        temp_mst_target_list.append(current_mst_nguoimua)
+                        temp_trang_thai_hoa_don_list.append(current_trang_thai_hoa_don)
+                        
+                    except Exception:
+                        invalid_dich_vu_ct+=1
+                        print("-------------------------------------------------")
+                        print(f"LOI FORMAT DICH VU TRONG HOA DON BAN RA. SO HOA DON: {so_hoa_don.text}")
+                        print_exc() 
+                        print("-------------------------------------------------")
+
+                if invalid_dich_vu_ct!=0:
+                    error_string = f"{invalid_dich_vu_ct} LOI FORMAT DICH VU TRONG HOA DON BAN RA. SO HOA DON: {so_hoa_don.text}"
+                    invalid_dich_vu_list.append(error_string)
+            
         if finish:   
             final_khms.extend(temp_khms)
             final_ky_hieu.extend(temp_ky_hieu)
@@ -510,9 +592,12 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
         "mst_target": final_mst_target_list,
         "trang_thai_hoa_don": final_trang_thai_hoa_don_list
     })
-    return df, hanghoa_df, auth
+    return df, hanghoa_df, auth, invalid_hoa_don_list, invalid_dich_vu_list
 
 def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, using_username:str, pw:str, safemode:bool):
+    invalid_hoa_don_list = []
+    invalid_dich_vu_list = []
+    
     url = "https://hoadondientu.gdt.gov.vn/tra-cuu/tra-cuu-hoa-don"
     if driver.current_url!=url: open_web(driver, url)
 
@@ -810,71 +895,113 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
                 in zip(stt_list, khms_list, ky_hieu_list, so_hoa_don_list,trang_thai_list, ket_qua_list, res_list):
                     if not stt.text.strip(): continue
                     counter+=1
-                    temp_khms.append(format_empty_str(khms.text))
-                    temp_ky_hieu.append(format_empty_str(kh.text))
-                    temp_so_hoa_don.append(format_empty_str(so_hoa_don.text))
-                    trang_thai_hoa_don = format_empty_str(trang_thai.text)
-                    temp_trang_thai.append(trang_thai_hoa_don)
-                    temp_ket_qua.append(format_empty_str(ket_qua.text))
+                    
+                    invalid_dich_vu_ct = 0
                     
                     def format_none(target):
                         if target is None: return "n/a"
                         else:
                             target = str(target)
                             return target.strip()
+                        
                     def format_money(target):
                         if target is None: return "n/a"
                         return str(int(target))
                     
-                    mst_nguoiban = format_none(API_res["nbmst"])
-                    kyhieu_sohoadon = f"{kh.text}_{so_hoa_don.text}_{mst_nguoiban}"
-                    temp_kyhieu_sohoadon.append(kyhieu_sohoadon)
+                    try:
+                        current_khms = format_empty_str(khms.text)
+                        current_ky_hieu = format_empty_str(kh.text)
+                        current_so_hoa_don = format_empty_str(so_hoa_don.text)
+                        current_trang_thai_hoa_don = format_empty_str(trang_thai.text)
+                        current_ket_qua = format_empty_str(ket_qua.text)
+                        
+                        current_mst_nguoiban = format_none(API_res["nbmst"])
+                        current_kyhieu_sohoadon = f"{current_ky_hieu}_{current_so_hoa_don}_{current_mst_nguoiban}"
+                        
+                        current_ngaylap = format_none(API_res["tdlap"][:10])
+                        current_mccqt = format_none(API_res["mhdon"])
+                        current_ten_nguoiban = format_none(API_res["nbten"])
+                        current_dia_chi_nguoiban = format_none(API_res["nbdchi"])
+                        current_ten_nguoimua = format_none(API_res["nmten"])
+                        current_mst_nguoimua = format_none(API_res["nmmst"])
+                        current_dia_chi_nguoimua = format_none(API_res["nmdchi"])
+                        
+                        if "thtttoan" in API_res:
+                            current_hinh_thuc_thanh_toan = format_none(API_res["thtttoan"])
+                        else:
+                            current_hinh_thuc_thanh_toan = "n/a"
+                        
+                        if "tgtphi" in API_res:
+                            current_tien_phi = format_money(API_res["tgtphi"])
+                        else:
+                            current_tien_phi = "n/a"
+                            
+                        if "dvtte" in API_res:
+                            current_dvtte = format_none(API_res["dvtte"])
+                        else:
+                            current_dvtte = "n/a"
+                            
+                        if len(API_res["thttltsuat"])!=0 and "tsuat" in API_res["thttltsuat"][0]:
+                            thue_suat_dic = API_res["thttltsuat"][0]
+                            current_thue_suat = format_none(thue_suat_dic["tsuat"])
+                        else: 
+                            current_thue_suat = "n/a"
+                        
+                        current_tong_tien_bang_so = format_money(API_res["tgtttbso"])
+                        current_tong_tien_bang_chu = format_none(API_res["tgtttbchu"])
+                        current_tien_chua_thue = format_money(API_res["tgtcthue"])
+                        current_tien_thue = format_money(API_res["tgtthue"])
+                        current_chiet_khau_thuong_mai = format_money(API_res["ttcktmai"])
+                        current_tien_thanh_toan = format_money(API_res["tgtttbso"])
+                        
+                        temp_khms.append(current_khms)
+                        temp_ky_hieu.append(current_ky_hieu)
+                        temp_so_hoa_don.append(current_so_hoa_don)
+                        temp_trang_thai.append(current_trang_thai_hoa_don)
+                        temp_ket_qua.append(current_ket_qua)
+                        temp_kyhieu_sohoadon.append(current_kyhieu_sohoadon)
+                        temp_ngaylap.append(current_ngaylap)
+                        temp_mccqt.append(current_mccqt)
+                        temp_ten_nguoiban.append(current_ten_nguoiban)
+                        temp_MST_nguoiban.append(current_mst_nguoiban)
+                        temp_dia_chi_nguoiban.append(current_dia_chi_nguoiban)
+                        temp_ten_nguoimua.append(current_ten_nguoimua)
+                        temp_MST_nguoimua.append(current_mst_nguoimua)
+                        temp_dia_chi_nguoimua.append(current_dia_chi_nguoimua)
+                        temp_hinh_thuc_thanh_toan.append(current_hinh_thuc_thanh_toan)
+                        temp_tien_phi.append(current_tien_phi)
+                        temp_don_vi_tien.append(current_dvtte)
+                        temp_thue_suat.append(current_thue_suat)
+                        temp_tong_tien_bang_so.append(current_tong_tien_bang_so)
+                        temp_tong_tien_bang_chu.append(current_tong_tien_bang_chu)
+                        temp_tien_chua_thue.append(current_tien_chua_thue)
+                        temp_tien_thue.append(current_tien_thue)
+                        temp_chiet_khau_thuong_mai.append(current_chiet_khau_thuong_mai)
+                        temp_tien_thanh_toan.append(current_tien_thanh_toan)
+                    except Exception:
+                        # neu hoa don bi loi thi se ko parse hang hoa dich vu trong hoa don
+                        error_string = f"LOI FORMAT HOA DON MUA VAO. SO HOA DON: {so_hoa_don.text}"
+                        invalid_hoa_don_list.append(error_string)
                     
-                    temp_ngaylap.append(format_none(API_res["tdlap"][:10]))
-                    temp_mccqt.append(format_none(API_res["mhdon"]))
-                    ten_target = format_none(API_res["nbten"])
-                    temp_ten_nguoiban.append(ten_target)
-                    temp_MST_nguoiban.append(mst_nguoiban)
-                    temp_dia_chi_nguoiban.append(format_none(API_res["nbdchi"]))
-                    temp_ten_nguoimua.append(format_none(API_res["nmten"]))
-                    temp_MST_nguoimua.append(format_none(API_res["nmmst"]))
-                    temp_dia_chi_nguoimua.append(format_none(API_res["nmdchi"]))
-                    # if ket_qua_kiem_tra_index>1:
-                    #     temp_hinh_thuc_thanh_toan.append("n/a")
-                    #     temp_tien_phi.append("n/a")
-                    #     temp_don_vi_tien.append("n/a")
-                    # else:
-                    #     temp_hinh_thuc_thanh_toan.append(format_none(API_res["thtttoan"])) 
-                    #     temp_tien_phi.append(format_money(API_res["tgtphi"]))
-                    #     temp_don_vi_tien.append(format_none(API_res["dvtte"]))
-                    if "thtttoan" in API_res: temp_hinh_thuc_thanh_toan.append(format_none(API_res["thtttoan"])) 
-                    else: temp_hinh_thuc_thanh_toan.append("n/a")
-                    
-                    if "tgtphi" in API_res: temp_tien_phi.append(format_money(API_res["tgtphi"]))
-                    else: temp_tien_phi.append("n/a")
-                    
-                    if "dvtte" in API_res: temp_don_vi_tien.append(format_none(API_res["dvtte"]))
-                    else: temp_don_vi_tien.append("n/a")
-                    
-                    if len(API_res["thttltsuat"])!=0 and "tsuat" in API_res["thttltsuat"][0]:
-                        thue_suat_dic = API_res["thttltsuat"][0]
-                        temp_thue_suat.append(format_none(thue_suat_dic["tsuat"]))
-                    else: temp_thue_suat.append("n/a")
+                        print("-------------------------------------------------")
+                        print(error_string)
+                        print_exc()
+                        print("-------------------------------------------------")
 
-                    temp_tong_tien_bang_so.append(format_money(API_res["tgtttbso"]))
-                    temp_tong_tien_bang_chu.append(format_none(API_res["tgtttbchu"]))
-                    temp_tien_chua_thue.append(format_money(API_res["tgtcthue"]))
-                    temp_tien_thue.append(format_money(API_res["tgtthue"]))
-                    temp_chiet_khau_thuong_mai.append(format_money(API_res["ttcktmai"]))
-                    temp_tien_thanh_toan.append(format_money(API_res["tgtttbso"]))
+                        continue
+                    
+                    
 
                     hang_hoa_dich_vu_list = API_res["hdhhdvu"]
                     
-                    def format_thue_suat(target):
-                        if target is None: return "n/a"
-                        thue = round(float(target)*100,2)
+                    def format_thue_suat(thue_suat):
+                        thue = round(thue_suat*100,2)
                         string = f"{thue}%"
                         string = string.replace(".",",")
+                        return string
+                    def format_tien_thue(thue):
+                        string = str(thue)
+                        string = string.replace(".", ",")
                         return string
                     def get_thue_suat(target):
                         if target is None: return 0
@@ -886,32 +1013,58 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
                         if target is None: return 0
                         return int(target)
                     
+                    
                     for hhdv_dic in hang_hoa_dich_vu_list:
-                        temp_tinh_chat_list.append(format_tinh_chat(hhdv_dic["tchat"]))
-                        temp_ten_list.append(format_none(hhdv_dic["ten"]))
-                        temp_don_vi_list.append(format_none(hhdv_dic["dvtinh"]))
-                        temp_so_luong_list.append(format_none(hhdv_dic["sluong"]).replace(".",","))
-                        temp_don_gia_list.append(format_none(hhdv_dic["dgia"]).replace(".",","))
-                        temp_chiet_khau_list.append(format_none(hhdv_dic["stckhau"]).replace(".",","))
+                        try:
+                            current_tinh_chat = format_tinh_chat(hhdv_dic["tchat"])
+                            current_ten = format_none(hhdv_dic["ten"])
+                            current_don_vi = format_none(hhdv_dic["dvtinh"])
+                            current_so_luong = format_none(hhdv_dic["sluong"]).replace(".",",")
+                            current_don_gia = format_none(hhdv_dic["dgia"]).replace(".",",")
+                            current_chiet_khau = format_none(hhdv_dic["stckhau"]).replace(".",",")
+                            
+                            current_thanh_tien = get_thanh_tien(hhdv_dic["thtien"])
+                            if current_thanh_tien==0:
+                                current_thue_suat = "n/a"
+                                current_tien_thue = "n/a"
+                                current_tong_tien = "n/a"
+                            else:
+                                current_thue_suat = get_thue_suat(hhdv_dic["tsuat"])
+                                current_tien_thue = round(current_thanh_tien*current_thue_suat,2)
+                                current_tong_tien = current_thanh_tien+current_tien_thue
+                                
+                                # format thue suat from float to x,x% format
+                                current_thue_suat = format_thue_suat(current_thue_suat)
+                                # format tien thue from float to x,x format
+                                current_tien_thue = format_tien_thue(current_tien_thue)
+                                # format tong tien from float to x,x format
+                                current_tong_tien = format_tien_thue(current_tong_tien)
+                                
+                            temp_tinh_chat_list.append(current_tinh_chat)
+                            temp_ten_list.append(current_ten)
+                            temp_don_vi_list.append(current_don_vi)
+                            temp_so_luong_list.append(current_so_luong)
+                            temp_don_gia_list.append(current_don_gia)
+                            temp_chiet_khau_list.append(current_chiet_khau)
+                            temp_thue_suat_list.append(current_thue_suat)
+                            temp_thanh_tien_list.append(current_thanh_tien)
+                            temp_tien_thue_list.append(current_tien_thue)
+                            temp_tong_tien_list.append(current_tong_tien)
+                            temp_khshd_list.append(current_kyhieu_sohoadon)
+                            temp_ten_target_list.append(current_ten_nguoiban)
+                            temp_mst_target_list.append(current_mst_nguoiban)
+                            temp_trang_thai_hoa_don_list.append(current_trang_thai_hoa_don)
                         
-                        thanh_tien = get_thanh_tien(hhdv_dic["thtien"])
-                        if thanh_tien==0:
-                            tien_thue = "n/a"
-                            tong_tien = "n/a"
-                        else:
-                            thue_suat = get_thue_suat(hhdv_dic["tsuat"])
-                            tien_thue = round(thanh_tien*thue_suat,2)
-                            tong_tien = thanh_tien+tien_thue
-                        
-                        temp_thue_suat_list.append(format_thue_suat(hhdv_dic["tsuat"]))
-                        temp_thanh_tien_list.append(format_money(hhdv_dic["thtien"]))
-                        temp_tien_thue_list.append(f"{tien_thue}".replace(".",","))
-                        temp_tong_tien_list.append(tong_tien)
-                        temp_khshd_list.append(kyhieu_sohoadon)
-                        temp_ten_target_list.append(ten_target)
-                        temp_mst_target_list.append(mst_nguoiban)
-                        temp_trang_thai_hoa_don_list.append(trang_thai_hoa_don)
-                        
+                        except Exception:
+                            invalid_dich_vu_ct+=1
+                            print("-------------------------------------------------")
+                            print(f"LOI FORMAT DICH VU TRONG HOA DON MUA VAO. SO HOA DON: {so_hoa_don.text}")
+                            print_exc() 
+                            print("-------------------------------------------------")  
+                            
+                    if invalid_dich_vu_ct!=0:
+                        error_string = f"{invalid_dich_vu_ct} LOI FORMAT DICH VU TRONG HOA DON MUA VAO. SO HOA DON: {so_hoa_don.text}"
+                        invalid_dich_vu_list.append(error_string)              
                     
             if finish:
                 final_khms.extend(temp_khms)
@@ -969,7 +1122,7 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
         else: sleep(15)
         ket_qua_kiem_tra_index+=1
         
-    if total==0: return (None, None, auth)
+    if total==0: return None, None, auth, invalid_hoa_don_list, invalid_dich_vu_list
     
     df = pd.DataFrame({
         'final_khms': final_khms,
@@ -1014,7 +1167,7 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
         "mst_target": final_mst_target_list,
         "trang_thai_hoa_don": final_trang_thai_hoa_don_list
     })
-    return df, hanghoa_df, auth
+    return df, hanghoa_df, auth, invalid_hoa_don_list, invalid_dich_vu_list
 
 def log_in(driver:webdriver, user:str, pw:str):
     sleep(1.5)
@@ -1119,7 +1272,7 @@ def main():
             final_df = pd.DataFrame(columns=df_columns)
             final_hanghoa_df = pd.DataFrame(columns=hanghoa_df_columns)
             for start, end in date_range:
-                df, hanghoa_df, auth = enter_ban_ra(driver, start, end, auth, using_username, pwDic[using_username], safemode.get())
+                df, hanghoa_df, auth, invalid_hang_hoa_list, invalid_dich_vu_list = enter_ban_ra(driver, start, end, auth, using_username, pwDic[using_username], safemode.get())
                 if df is not None: 
                     final_df = pd.concat([final_df, df], ignore_index=True)
                     final_hanghoa_df = pd.concat([final_hanghoa_df, hanghoa_df], ignore_index=True)
@@ -1128,8 +1281,8 @@ def main():
             final_df['counter'] = idx_counter
             final_hanghoa_df['counter'] = idx_counter
             idx_counter+=1
-            return final_df, final_hanghoa_df
-        else: return (None, None)
+            return final_df, final_hanghoa_df, invalid_hang_hoa_list, invalid_dich_vu_list
+        else: return None, None, None, None
 
     def mua_vao(start:datetime, end:datetime, text:str):
         nonlocal mua_vao_date_set
@@ -1142,7 +1295,7 @@ def main():
             final_df = pd.DataFrame(columns=df_columns)
             final_hanghoa_df = pd.DataFrame(columns=hanghoa_df_columns)
             for start, end in date_range:
-                df, hanghoa_df, auth = enter_mua_vao(driver, start, end, auth, using_username, pwDic[using_username], safemode.get())
+                df, hanghoa_df, auth, invalid_hang_hoa_list, invalid_dich_vu_list = enter_mua_vao(driver, start, end, auth, using_username, pwDic[using_username], safemode.get())
                 if df is not None: 
                     final_df = pd.concat([final_df, df], ignore_index=True)
                     final_hanghoa_df = pd.concat([final_hanghoa_df, hanghoa_df], ignore_index=True)
@@ -1151,8 +1304,8 @@ def main():
             final_df['counter'] = idx_counter
             final_hanghoa_df['counter'] = idx_counter
             if "cả" not in text: idx_counter+=1 # if ca hai, then add up the counter in the ban_ra
-            return final_df, final_hanghoa_df
-        else: return (None, None)
+            return final_df, final_hanghoa_df, invalid_hang_hoa_list, invalid_dich_vu_list
+        else: return None, None, None, None
         
     def get_range(start:datetime, end:datetime, having_set:set):
         """
@@ -1478,37 +1631,71 @@ def main():
         end_date = datetime.strptime(parts[-1], "%d/%m/%Y")
         hoa_don_type = parts[2]
         if hoa_don_type=="mua": 
-            df, hanghoa_df = mua_vao(start_date, end_date, search_text)
+            df, hanghoa_df, invalid_hoa_don_list, invalid_dich_vu_list = mua_vao(start_date, end_date, search_text)
             if df is not None:
                 valid = True
                 mua_vao_df = pd.concat([mua_vao_df, df], ignore_index=True)
                 mua_vao_hanghoa_df = pd.concat([mua_vao_hanghoa_df, hanghoa_df], ignore_index=True)
-                res_label.config(text=f"{df.shape[0]} hoá đơn mua vào")
+                
+                output_string = f"{df.shape[0]} hoá đơn mua vào"
+                if len(invalid_hoa_don_list)!=0:
+                    output_string = output_string + "\n" + "\n".join(invalid_hoa_don_list)
+                if len(invalid_dich_vu_list)!=0:
+                    output_string = output_string + "\n" + "\n".join(invalid_dich_vu_list)
+                    
+                res_label.config(text=output_string)
             else: res_label.config(text="0 hoá đơn mua vào")
         elif hoa_don_type=="bán": 
-            df, hanghoa_df = ban_ra(start_date, end_date, search_text)
+            df, hanghoa_df, invalid_hoa_don_list, invalid_dich_vu_list = ban_ra(start_date, end_date, search_text)
             if df is not None:
                 valid = True
                 ban_ra_df = pd.concat([ban_ra_df, df], ignore_index=True)
                 ban_ra_hanghoa_df = pd.concat([ban_ra_hanghoa_df, hanghoa_df], ignore_index=True)
-                res_label.config(text=f"{df.shape[0]} hoá đơn bán ra")
+                
+                output_string = f"{df.shape[0]} hoá đơn bán ra"
+                if len(invalid_hoa_don_list)!=0:
+                    output_string = output_string + "\n" + "\n".join(invalid_hoa_don_list)
+                if len(invalid_dich_vu_list)!=0:
+                    output_string = output_string + "\n" + "\n".join(invalid_dich_vu_list)
+                
+                res_label.config(text=output_string)
             else: res_label.config(text="0 hoá đơn bán ra")
         else: 
             muavao_num = 0
             banra_num = 0
-            df, hanghoa_df = mua_vao(start_date, end_date, search_text)
+            df, hanghoa_df, mua_invalid_hoa_don_list, mua_invalid_dich_vu_list = mua_vao(start_date, end_date, search_text)
             if df is not None:
                 valid = True
                 mua_vao_df = pd.concat([mua_vao_df, df], ignore_index=True)
                 mua_vao_hanghoa_df = pd.concat([mua_vao_hanghoa_df, hanghoa_df], ignore_index=True)
                 muavao_num = df.shape[0]
-            df, hanghoa_df = ban_ra(start_date, end_date, search_text)
+                
+                mua_invalid_string = ""
+                if len(mua_invalid_hoa_don_list)!=0:
+                    mua_invalid_string = mua_invalid_string + "\n" + "\n".join(mua_invalid_hoa_don_list)
+                if len(mua_invalid_dich_vu_list)!=0:
+                    mua_invalid_string = mua_invalid_string + "\n" + "\n".join(mua_invalid_dich_vu_list)
+                
+            df, hanghoa_df, ban_invalid_hoa_don_list, ban_invalid_dich_vu_list = ban_ra(start_date, end_date, search_text)
             if df is not None:
                 valid = True
                 ban_ra_df = pd.concat([ban_ra_df, df], ignore_index=True)
                 ban_ra_hanghoa_df = pd.concat([ban_ra_hanghoa_df, hanghoa_df], ignore_index=True)
                 banra_num = df.shape[0]
-            res_label.config(text=f"{muavao_num} hoá đơn mua vào\n{banra_num} hoá đơn bán ra")
+                
+                ban_invalid_string = ""
+                if len(ban_invalid_hoa_don_list)!=0:
+                    ban_invalid_string = ban_invalid_string + "\n" + "\n".join(ban_invalid_hoa_don_list)
+                if len(ban_invalid_dich_vu_list)!=0:
+                    ban_invalid_string = ban_invalid_string + "\n" + "\n".join(ban_invalid_dich_vu_list)
+                    
+            output_string = f"{muavao_num} hoá đơn mua vào\n{banra_num} hoá đơn bán ra"
+            if len(mua_invalid_string)!=0:
+                output_string = output_string + "\n" + mua_invalid_string
+            if len(ban_invalid_string)!=0:
+                output_string = output_string + "\n" + ban_invalid_string
+                
+            res_label.config(text=output_string)
 
         if valid and search_text not in history:
             history.insert(0,search_text)
@@ -1691,16 +1878,18 @@ def main():
     cal1.bind("<<CalendarSelected>>", lambda event: cal1_func())
     cal2.bind("<<CalendarSelected>>", lambda event: cal2_func())
 
-    root.mainloop()
-    driver.close()
-    user_dir = os.path.join(exe_path, "users")
-    os.makedirs(user_dir, exist_ok=True)
-    with open(f"{exe_path}/users/usernameDic.pkl", "wb") as file:
-        pickle.dump(usernameDic, file)
-    with open(f"{exe_path}/users/pwDic.pkl", "wb") as file:
-        pickle.dump(pwDic, file)
-    with open(f"{exe_path}/users/companyDic.pkl", "wb") as file:
-        pickle.dump(companyDic, file)
+    try:
+        root.mainloop()
+    finally:
+        driver.close()
+        user_dir = os.path.join(exe_path, "users")
+        os.makedirs(user_dir, exist_ok=True)
+        with open(f"{exe_path}/users/usernameDic.pkl", "wb") as file:
+            pickle.dump(usernameDic, file)
+        with open(f"{exe_path}/users/pwDic.pkl", "wb") as file:
+            pickle.dump(pwDic, file)
+        with open(f"{exe_path}/users/companyDic.pkl", "wb") as file:
+            pickle.dump(companyDic, file)
             
 if __name__=="__main__":
     import multiprocessing
