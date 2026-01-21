@@ -17,6 +17,8 @@ import pygetwindow as gw
 import subprocess
 from getAuth import getAuth
 from traceback import print_exc
+import json
+
 
 if hasattr(sys, '_MEIPASS'):
     # Running in the temp directory (PyInstaller extracted files)
@@ -68,8 +70,13 @@ async def get_receipt_by_API(auth:str, ma_so_thue:str, ky_hieu_hoa_don:str, so_h
                         await asyncio.sleep(3)
                 else: break
         except (httpx.TimeoutException):""
-    # print(response.status_code, index)
-    if response.status_code!=200: 
+    if response.status_code!=200:
+        
+        if auth:
+            json_fn = f"{ma_so_thue}_{ky_hieu_hoa_don}_{so_hoa_don}_{ky_hieu_mau_so}_{index}.json"
+            with open(json_fn, "w") as file:
+                json.dump(response.json(), file, indent=4)
+                
         return ("bad auth",)
     try:
         res = response.json()
@@ -293,12 +300,13 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
                 if not stt.text.strip(): tasks.append(asyncio.create_task(returnNone()))
                 elif success: tasks.append(asyncio.create_task(returnNone()))
                 else: tasks.append(asyncio.create_task(get_receipt_by_API(auth=auth, ma_so_thue=using_username, ky_hieu_hoa_don=kh.text, so_hoa_don=so_hoa_don.text, ky_hieu_mau_so=khms.text, index=0)))
-            data_list = await asyncio.gather(*tasks)
+            data_list = await asyncio.gather(*tasks, return_exceptions=True)
             return data_list
 
         data_list = asyncio.run(getData())
         need_recover = False
         need_new_auth = False
+        network_fail = False
         
         for i in range(len(stt_list)):
             success = success_list[i]
@@ -308,20 +316,25 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
                     success_list[i] = True
                 else:
                     data = data_list[i]
-                    api_res = data[0]
-                    if api_res=="good":
-                        success_list[i] = True
-                        res_list[i] = data[1]
-                    elif api_res=="bad auth":
-                        need_new_auth = True
+                    if isinstance(data, Exception):
+                        network_fail = True
                     else:
-                        need_recover = True
+                        api_res = data[0]
+                        if api_res=="good":
+                            success_list[i] = True
+                            res_list[i] = data[1]
+                        elif api_res=="bad auth":
+                            need_new_auth = True
+                        else:
+                            need_recover = True
         if need_recover:
             recover(page_now)
         elif need_new_auth:
             try:
                 auth = getAuth(banra=True, driver_path=driver_path)
             except NoSuchElementException: recover(page_now)
+        elif network_fail:
+            print("Network failed. Retrying to get the failed requests...")
         else:
             finish = True
             for stt, khms, kh, so_hoa_don, trang_thai, ket_qua, API_res\
@@ -754,7 +767,7 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
         else:
             hoa_don_tab = driver.find_element(By.XPATH,"/html/body/div[1]/section/section/main/div/div/div/div/div[3]/div[2]/div[3]/div[2]/div[2]/div[1]/div/div/div/div/div[1]/div[2]")
         hoa_don_tab.click()
-        sleep(10)
+        sleep(1)
         ket_qua_kiem_tra_dropdown.click()
         ket_qua_kiem_tra.click()
         number = search()
@@ -817,7 +830,7 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
                 trang_thai_list = driver.find_elements(By.CSS_SELECTOR, "tr.ant-table-row.ant-table-row-level-0 > td:nth-child(12) > span")
                 ket_qua_list = driver.find_elements(By.CSS_SELECTOR, "tr.ant-table-row.ant-table-row-level-0 > td:nth-child(13) > span")
             element_list = driver.find_elements(by=By.CSS_SELECTOR, value="tr.ant-table-row.ant-table-row-level-0")
-            
+                    
             def network_test():
                 try:
                     if page_now<math.ceil(number/15): target = 15
@@ -831,6 +844,8 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
                     return network_counter==target
                 except Exception:
                     return False
+            
+            # tax account 0314506414 mua vao in 1/1/26 - 1/7/26 cuc thue ko nhan ma had wrong res. res statement said 4 res but the website only showed 2 res
             
             if not network_test():
                 recover(page_now, ket_qua_kiem_tra_index)
@@ -846,6 +861,7 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
             # print("so hoa don", len(so_hoa_don_list))
             # print("thong tin", len(thong_tin_list))
             # print("success", len(success_list))
+            
             async def getData():
                 tasks = []  
                 for stt, khms, kh, so_hoa_don, thong_tin, success\
@@ -858,12 +874,14 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
                         else:
                             mst = using_username
                         tasks.append(asyncio.create_task(get_receipt_by_API(auth=auth, ma_so_thue=mst, ky_hieu_hoa_don=kh.text, so_hoa_don=so_hoa_don.text, ky_hieu_mau_so=khms.text, index=ket_qua_kiem_tra_index)))
-                data_list = await asyncio.gather(*tasks)
+                data_list = await asyncio.gather(*tasks, return_exceptions=True)
                 return data_list
             
             data_list = asyncio.run(getData())
+                
             need_recover = False
             need_new_auth = False
+            network_fail = False
             
             for i in range(len(stt_list)):
                 success = success_list[i]
@@ -873,22 +891,27 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
                         success_list[i] = True
                     else:
                         data = data_list[i]
-                        api_res = data[0]
-                        if api_res=="good":
-                            success_list[i] = True
-                            res_list[i] = data[1]
-                        elif api_res=="bad auth":
-                            need_new_auth = True
+                        # data is'RemoteProtocolError' object because sth wrong happened with the client and server connection
+                        if isinstance(data, Exception):
+                            network_fail = True
                         else:
-                            need_recover = True
-            
+                            api_res = data[0]
+                            if api_res=="good":
+                                success_list[i] = True
+                                res_list[i] = data[1]
+                            elif api_res=="bad auth":
+                                need_new_auth = True
+                            else:
+                                need_recover = True
             
             if need_recover:
                 recover(page_now, ket_qua_kiem_tra_index)
             elif need_new_auth:
                 try:
-                    auth = getAuth(banra=False, driver_path=driver_path)
+                    auth  = getAuth(banra=False, driver_path=driver_path)
                 except NoSuchElementException: recover(page_now, ket_qua_kiem_tra_index)
+            elif network_fail:
+                print("Network failed. Retrying to get the failed requests...")
             else:
                 finish = True
                 for stt, khms, kh, so_hoa_don, trang_thai, ket_qua, API_res\
@@ -1193,7 +1216,7 @@ def log_in(driver:webdriver, user:str, pw:str):
         warning_button.click()
     except NoSuchElementException: print("No warning")
     # press the log in button and enter username, password
-    log_in_button = WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#__next > section > header > div.home-header-menu > div > div:nth-child(6) > span")))
+    log_in_button = WebDriverWait(driver, 60).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#__next > section > header > div.home-header-menu > div > div:nth-child(7) > span")))
     log_in_button.click()
     # enter username and password
     user_input = WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "#username")))
