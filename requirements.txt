@@ -5,3 +5,4 @@ pygetwindow==0.0.9
 selenium==4.32.0
 tkcalendar==1.6.1
 websocket_client==1.8.0
+openpyxl
