@@ -40,8 +40,10 @@ async def returnNone():
     return None
 
 async def get_receipt_by_API(auth:str, ma_so_thue:str, ky_hieu_hoa_don:str, so_hoa_don:str, ky_hieu_mau_so:str, index:int):
-    if index<2: url = "https://hoadondientu.gdt.gov.vn:30000/query/invoices/detail"
-    else: url = "https://hoadondientu.gdt.gov.vn:30000/sco-query/invoices/detail"
+    if index < 2:
+        url = "https://hoadondientu.gdt.gov.vn/api/query/invoices/detail"
+    else:
+        url = "https://hoadondientu.gdt.gov.vn/api/sco-query/invoices/detail"
 
     querystring = {"nbmst":ma_so_thue,"khhdon":ky_hieu_hoa_don,"shdon":so_hoa_don,"khmshdon":ky_hieu_mau_so}
     
@@ -88,19 +90,45 @@ def format_empty_str(text:str):
     if not text.strip(): return "n/a"
     else: return text.strip()
 
-def open_web(driver:webdriver, url:str):
-    driver.get(url)
-    # Wait for the page to finish loading
-    sleep(5)
-    while driver.execute_script("return document.readyState") != "complete":
-        sleep(1)
+def open_tra_cuu_hoa_don_page(driver: webdriver):
+    if "/tra-cuu/tra-cuu-hoa-don" in driver.current_url:
+        return
+
+    trang_chu_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((
+            By.XPATH,
+            "//a[@href='/' and normalize-space()='Trang chủ']"
+        ))
+    )
+    trang_chu_button.click()
+
+    tra_cuu_dropdown = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((
+            By.XPATH,
+            "//div[contains(@class, 'ant-dropdown-trigger') and .//span[normalize-space()='Tra cứu']]"
+        ))
+    )
+    tra_cuu_dropdown.click()
+
+    tra_cuu_hoa_don_page = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((
+            By.XPATH,
+            "//li[contains(@class, 'ant-dropdown-menu-item')]//a[@href='/tra-cuu/tra-cuu-hoa-don' and normalize-space()='Tra cứu hóa đơn']"
+        ))
+    )
+    tra_cuu_hoa_don_page.click()
+
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "div.ant-tabs-bar.ant-tabs-top-bar"))
+    )
+    
     
 def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using_username:str, pw:str, safemode:bool):
     invalid_hoa_don_list = []
     invalid_dich_vu_list = []
     
-    url = "https://hoadondientu.gdt.gov.vn/tra-cuu/tra-cuu-hoa-don"
-    if driver.current_url!=url: open_web(driver, url)
+    url = "hoadondientu.gdt.gov.vn/tra-cuu/tra-cuu-hoa-don"
+    if driver.current_url!=url: open_tra_cuu_hoa_don_page(driver)
 
     ban_ra_tab = driver.find_element(by=By.CSS_SELECTOR, value="#__next > section > section > main > div > div > div > div > div.ant-tabs-bar.ant-tabs-top-bar > div > div > div > div > div:nth-child(1) > div:nth-child(1)")
     ban_ra_tab.click()
@@ -145,7 +173,7 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
         sleep(10)
         while True:
             try:
-                open_web(driver, url)
+                open_tra_cuu_hoa_don_page(driver)
                 ban_ra_tab = driver.find_element(by=By.CSS_SELECTOR, value="#__next > section > section > main > div > div > div > div > div.ant-tabs-bar.ant-tabs-top-bar > div > div > div > div > div:nth-child(1) > div:nth-child(1)")
                 ban_ra_tab.click()
                 break
@@ -318,6 +346,7 @@ def enter_ban_ra(driver:webdriver, start:datetime, end:datetime, auth:str, using
                     data = data_list[i]
                     if isinstance(data, Exception):
                         network_fail = True
+                        print("Exception happened during calling to invoice detail API!!!", data)
                     else:
                         api_res = data[0]
                         if api_res=="good":
@@ -611,8 +640,8 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
     invalid_hoa_don_list = []
     invalid_dich_vu_list = []
     
-    url = "https://hoadondientu.gdt.gov.vn/tra-cuu/tra-cuu-hoa-don"
-    if driver.current_url!=url: open_web(driver, url)
+    url = "hoadondientu.gdt.gov.vn/tra-cuu/tra-cuu-hoa-don"
+    if driver.current_url!=url: open_tra_cuu_hoa_don_page(driver)
 
     mua_vao_tab = driver.find_element(by=By.CSS_SELECTOR, value="#__next > section > section > main > div > div > div > div > div.ant-tabs-bar.ant-tabs-top-bar > div > div > div > div > div:nth-child(1) > div:nth-child(2)")
     mua_vao_tab.click()
@@ -669,7 +698,7 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
         sleep(10)
         while True:
             try:
-                open_web(driver, url)
+                open_tra_cuu_hoa_don_page(driver)
                 mua_vao_tab = driver.find_element(by=By.CSS_SELECTOR, value="#__next > section > section > main > div > div > div > div > div.ant-tabs-bar.ant-tabs-top-bar > div > div > div > div > div:nth-child(1) > div:nth-child(2)")
                 mua_vao_tab.click()
                 break
@@ -894,6 +923,7 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
                         # data is'RemoteProtocolError' object because sth wrong happened with the client and server connection
                         if isinstance(data, Exception):
                             network_fail = True
+                            print("Exception happened during calling to invoice detail API!!!", data)
                         else:
                             api_res = data[0]
                             if api_res=="good":
@@ -1192,6 +1222,13 @@ def enter_mua_vao(driver:webdriver, start:datetime, end:datetime, auth:str, usin
     })
     return df, hanghoa_df, auth, invalid_hoa_don_list, invalid_dich_vu_list
 
+def open_web(driver:webdriver, url:str):
+    driver.get(url)
+    # Wait for the page to finish loading
+    sleep(5)
+    while driver.execute_script("return document.readyState") != "complete":
+        sleep(1)
+
 def log_in(driver:webdriver, user:str, pw:str):
     sleep(1.5)
     pyautogui.click()
@@ -1424,13 +1461,13 @@ def main():
     export_frame.pack(anchor='w', padx=50)
 
     # calendar 1
-    cal1 = Calendar(first_cal_frame, font="Arial 15", selectmode='day', year=2024, month=1, day=1, maxdate=max_date)
+    cal1 = Calendar(first_cal_frame, font="Arial 15", selectmode='day', year=max_date.year, month=max_date.month, day=max_date.day, maxdate=max_date)
     cal1.pack()
 
     title_label1 = tk.Label(first_cal_frame, text='Từ Ngày', font=("Arial", 15), relief="solid", bd=2, padx=10, pady=5)
     title_label1.pack(pady=10, padx=10)
     # calender 2
-    cal2 = Calendar(second_cal_frame, font="Arial 15", selectmode='day', year=2024, month=1, day=1, maxdate=max_date)
+    cal2 = Calendar(second_cal_frame, font="Arial 15", selectmode='day', year=max_date.year, month=max_date.month, day=max_date.day, maxdate=max_date)
     cal2.pack()
 
     title_label2 = tk.Label(second_cal_frame, text='Đến Ngày', font=("Arial", 15), relief="solid", bd=2, padx=10, pady=5)

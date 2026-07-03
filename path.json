@@ -1,6 +1,6 @@
 {
-    "exe_path": "D:/digital-receipt-automation",
-    "driver_path": "D:/chromium/chromedriver.exe",
-    "batch_script": "D:/digital-receipt-automation/open_chrome_on_win10.bat",
-    "chrome_exe_path": "D:/chromium/chrome-win64/chrome.exe"
+    "exe_path": "C:/Users/ADMIN/Documents/digital-receipt-automation",
+    "driver_path": "C:/Users/ADMIN/Documents/chromedriver-win64/chromedriver.exe",
+    "batch_script": "C:/Users/ADMIN/Documents/digital-receipt-automation/open_chrome_on_win10.bat",
+    "chrome_exe_path": "C:/Users/ADMIN/Documents/chrome-win64/chrome.exe"
 }
